@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GB栄養管理録</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col pb-12">
+
+    <!-- ヘッダーエリア -->
+    <header class="bg-lime-600 text-white shadow-md sticky top-0 z-30 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-apple-whole text-2xl text-yellow-300"></i>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold tracking-wider">GB栄養管理録</h1>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-1.5 sm:space-x-2">
+            <!-- API設定ボタン -->
+            <button onclick="toggleModal('apiSettingsModal')" class="bg-lime-700 hover:bg-lime-800 text-white px-2.5 py-1.5 rounded-full flex items-center space-x-1 text-xs font-bold shadow-sm transition-all border border-lime-500">
+                <i class="fa-solid fa-key text-yellow-300"></i>
+                <span class="hidden sm:inline">API設定</span>
+            </button>
+
+            <!-- スマホ連携ボタン -->
+            <button onclick="openSyncModal()" class="bg-lime-700 hover:bg-lime-800 text-white px-2.5 py-1.5 rounded-full flex items-center space-x-1.5 text-xs font-bold shadow-sm transition-all">
+                <i class="fa-solid fa-mobile-screen-button text-yellow-300"></i>
+                <span class="hidden sm:inline">スマホ同期</span>
+            </button>
+            
+            <!-- 目標カロリー設定ボタン -->
+            <button onclick="toggleModal('profileModal')" class="bg-yellow-400 hover:bg-yellow-500 text-lime-950 px-3 py-1.5 rounded-full flex items-center space-x-1 text-xs font-bold shadow-sm transition-all">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>目標設定</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- 左カラム：今日の栄養ステータス & AIアドバイス -->
+        <div class="md:col-span-2 space-y-4">
+            
+            <!-- 日付選択コントロール -->
+            <div class="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between">
+                <button onclick="changeDate(-1)" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <i class="fa-regular fa-calendar text-lime-600"></i>
+                    <input type="date" id="datePicker" onchange="onDateChanged(this.value)" class="font-bold text-slate-700 border-none focus:ring-0 cursor-pointer text-sm">
+                </div>
+                <button onclick="changeDate(1)" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- 栄養進捗ダッシュボード -->
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-lime-100 flex flex-col space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <!-- カロリーサークル -->
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="relative w-40 h-40">
+                            <svg class="w-full h-full transform -rotate-90">
+                                <circle cx="80" cy="80" r="70" stroke="#f1f5f9" stroke-width="12" fill="transparent" />
+                                <circle id="calorieCircle" cx="80" cy="80" r="70" stroke="#84cc16" stroke-width="12" fill="transparent" stroke-dasharray="439.8" stroke-dashoffset="439.8" stroke-linecap="round" class="transition-all duration-500" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">摂取カロリー</span>
+                                <span id="currentCalories" class="text-3xl font-bold text-slate-800">0</span>
+                                <span id="targetCaloriesLabel" class="text-[10px] text-slate-400 font-bold">/ 2000 kcal</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PFC三大栄養素メーター -->
+                    <div class="flex flex-col justify-center space-y-4">
+                        <h3 class="text-xs font-bold text-slate-400 tracking-wider">PFCバランス</h3>
+                        
+                        <!-- たんぱく質 -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold text-slate-600">
+                                <span>たんぱく質 (P)</span>
+                                <span id="proteinText">0g / 60g (0%)</span>
+                            </div>
+                            <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="proteinBar" class="h-full bg-orange-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- 脂質 -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold text-slate-600">
+                                <span>脂質 (F)</span>
+                                <span id="fatText">0g / 60g (0%)</span>
+                            </div>
+                            <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="fatBar" class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- 炭水化物 -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold text-slate-600">
+                                <span>炭水化物 (C)</span>
+                                <span id="carbsText">0g / 275g (0%)</span>
+                            </div>
+                            <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="carbsBar" class="h-full bg-indigo-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 詳細レポートへの導線ボタン -->
+                <div class="pt-3 border-t border-slate-100 flex justify-center">
+                    <button onclick="openDailyDetailModal()" class="w-full py-3 bg-lime-50 hover:bg-lime-100 text-lime-700 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center space-x-2 border border-lime-200">
+                        <i class="fa-solid fa-chart-bar text-sm"></i>
+                        <span>詳細栄養レポート（19大栄養素）を見る</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- AIアドバイスエリア -->
+            <div class="bg-gradient-to-br from-lime-500 to-emerald-600 text-white p-5 rounded-3xl shadow-md space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-white text-lime-700 flex items-center justify-center font-bold text-sm shadow-inner">
+                            Ｇ
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xs">管理栄養士GBのアドバイス</h3>
+                            <p class="text-[9px] text-lime-100">今日一日の食事バランスから分析</p>
+                        </div>
+                    </div>
+                    
+                    <button id="ttsButton" onclick="toggleTts()" disabled class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors disabled:opacity-40">
+                        <i id="ttsIcon" class="fa-solid fa-volume-high text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-xs leading-relaxed" id="adviceContent">
+                    今日の食事バランスに基づいたアドバイスを作成してみましょう！
+                </div>
+
+                <button id="getAdviceBtn" onclick="generateAdvice()" class="w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 text-lime-950 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center space-x-1 shadow">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>AIアドバイスを生成</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右カラム：食事の新規登録 & 本日の登録リスト -->
+        <div class="space-y-4">
+            
+            <!-- 食事登録カード -->
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 space-y-3">
+                <h3 class="font-bold text-xs text-slate-400 tracking-wider">食事を記録する</h3>
+                
+                <!-- 食事時間セグメント -->
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button id="cat_breakfast" onclick="setCategory('breakfast')" class="cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center border-orange-500 text-orange-600 bg-orange-50">朝食</button>
+                    <button id="cat_lunch" onclick="setCategory('lunch')" class="cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center border-transparent text-slate-500 bg-slate-50">昼食</button>
+                    <button id="cat_dinner" onclick="setCategory('dinner')" class="cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center border-transparent text-slate-500 bg-slate-50">夕食</button>
+                    <button id="cat_snack" onclick="setCategory('snack')" class="cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center border-transparent text-slate-500 bg-slate-50">間食</button>
+                </div>
+
+                <!-- 入力方法タブ -->
+                <div class="flex border-b text-xs">
+                    <button id="tab_text" onclick="setTab('text')" class="flex-1 py-2 text-center border-b-2 border-lime-600 text-lime-700 font-bold">テキスト分析</button>
+                    <button id="tab_image" onclick="setTab('image')" class="flex-1 py-2 text-center border-b-2 border-transparent text-slate-400">画像分析</button>
+                    <button id="tab_manual" onclick="setTab('manual')" class="flex-1 py-2 text-center border-b-2 border-transparent text-slate-400">手動入力</button>
+                </div>
+
+                <!-- タブコンテンツ 1: テキスト一括 -->
+                <div id="tabContent_text" class="space-y-3 pt-2">
+                    <textarea id="textMealInput" rows="3" placeholder="例：ハンバーグステーキとライス、コンソメスープ" class="w-full text-xs border border-slate-200 rounded-2xl p-3 focus:outline-none focus:border-lime-500 placeholder-slate-300 leading-relaxed"></textarea>
+                    <button id="btnAnalyzeText" onclick="analyzeMealText()" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors">
+                        AIで一括栄養判定
+                    </button>
+                </div>
+
+                <!-- タブコンテンツ 2: 画像解析 -->
+                <div id="tabContent_image" class="hidden space-y-3 pt-2">
+                    <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center cursor-pointer hover:bg-slate-50 relative" onclick="document.getElementById('imageFileInput').click()">
+                        <i class="fa-solid fa-camera text-2xl text-slate-400 mb-1"></i>
+                        <p class="text-[10px] font-bold text-slate-400">お皿の写真を撮る・アップロード</p>
+                        <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="handleImageFile(this)">
+                    </div>
+                    
+                    <div id="imagePreviewContainer" class="hidden relative rounded-2xl overflow-hidden aspect-video border bg-slate-100">
+                        <img id="imagePreview" src="" alt="食事プレビュー" class="w-full h-full object-cover">
+                        <button onclick="resetImageSelection()" class="absolute top-2 right-2 w-6 h-6 bg-slate-900/60 text-white rounded-full flex items-center justify-center hover:bg-slate-900"><i class="fa-solid fa-xmark text-xs"></i></button>
+                    </div>
+
+                    <button id="btnAnalyzeImage" onclick="analyzeMealImage()" disabled class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-40">
+                        AI画像分析を開始
+                    </button>
+                </div>
+
+                <!-- タブコンテンツ 3: 手動入力 -->
+                <div id="tabContent_manual" class="hidden space-y-3 pt-2">
+                    <p class="text-[10px] text-slate-400 font-medium">下のフォームにメニュー名と数値を入力して追加してください。</p>
+                </div>
+
+                <!-- 栄養素確認・修正フォーム -->
+                <div class="border-t pt-3 space-y-2.5">
+                    <div>
+                        <label class="block text-[10px] font-extrabold text-slate-400 mb-1">メニュー・食べ物名</label>
+                        <input type="text" id="mealName" placeholder="（自動入力されます、手動入力も可）" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-lime-500 font-bold">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 mb-0.5">カロリー (kcal)</label>
+                            <input type="number" id="mealCalories" class="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 mb-0.5">たんぱく質 (g)</label>
+                            <input type="number" id="mealProtein" class="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 mb-0.5">脂質 (g)</label>
+                            <input type="number" id="mealFat" class="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 mb-0.5">炭水化物(PFC用) (g)</label>
+                            <input type="number" id="mealCarbs" class="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold" step="any">
+                        </div>
+                    </div>
+
+                    <!-- アコーディオン：詳細栄養素（19大栄養素） -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                        <button type="button" onclick="toggleDetailedInputAccordion()" class="w-full p-2.5 text-[11px] font-bold text-slate-600 flex justify-between items-center hover:bg-slate-100 transition-colors">
+                            <span class="flex items-center"><i class="fa-solid fa-circle-plus text-lime-600 mr-1.5"></i>PFC以外の栄養素を設定・確認</span>
+                            <i id="accordionIcon" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-300"></i>
+                        </button>
+                        <div id="detailedInputContainer" class="hidden p-3 border-t border-slate-200 bg-white space-y-4 max-h-[300px] overflow-y-auto">
+                            <!-- グループ1: 炭水化物・糖質・食物繊維 -->
+                            <div>
+                                <h4 class="text-[10px] font-bold text-indigo-600 border-b pb-0.5 mb-2">糖質・食物繊維系</h4>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">炭水化物 (g)</label>
+                                        <input type="number" id="mealCarbohydrate" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">糖質 (g)</label>
+                                        <input type="number" id="mealSugar" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">食物繊維 (g)</label>
+                                        <input type="number" id="mealFiber" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- グループ2: ミネラル -->
+                            <div>
+                                <h4 class="text-[10px] font-bold text-amber-600 border-b pb-0.5 mb-2">主要ミネラル</h4>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">カリウム (mg)</label>
+                                        <input type="number" id="mealPotassium" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">カルシウム (mg)</label>
+                                        <input type="number" id="mealCalcium" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">マグネシウム (mg)</label>
+                                        <input type="number" id="mealMagnesium" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">鉄 (mg)</label>
+                                        <input type="number" id="mealIron" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">亜鉛 (mg)</label>
+                                        <input type="number" id="mealZinc" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- グループ3: ビタミン -->
+                            <div>
+                                <h4 class="text-[10px] font-bold text-green-600 border-b pb-0.5 mb-2">主要ビタミン</h4>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンA (μgRE)</label>
+                                        <input type="number" id="mealVitaminA" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンD (μg)</label>
+                                        <input type="number" id="mealVitaminD" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンE (mg)</label>
+                                        <input type="number" id="mealVitaminE" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンB1 (mg)</label>
+                                        <input type="number" id="mealVitaminB1" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンB2 (mg)</label>
+                                        <input type="number" id="mealVitaminB2" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンB6 (mg)</label>
+                                        <input type="number" id="mealVitaminB6" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンB12 (μg)</label>
+                                        <input type="number" id="mealVitaminB12" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">ビタミンC (mg)</label>
+                                        <input type="number" id="mealVitaminC" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">葉酸 (μg)</label>
+                                        <input type="number" id="mealFolate" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- グループ4: その他脂質・塩分 -->
+                            <div>
+                                <h4 class="text-[10px] font-bold text-rose-600 border-b pb-0.5 mb-2">過剰制限項目</h4>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">飽和脂肪酸 (g)</label>
+                                        <input type="number" id="mealSaturatedFat" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-extrabold text-slate-400 mb-0.5">塩分 (g)</label>
+                                        <input type="number" id="mealSalt" placeholder="0" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveMeal()" class="w-full py-3 bg-lime-600 hover:bg-lime-700 text-white font-bold rounded-2xl text-xs transition-colors flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>この内容で登録する</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- 今日の食事ログリスト -->
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-xs text-slate-400 tracking-wider">今日の記録</h3>
+                    <span id="mealCountLabel" class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">0件</span>
+                </div>
+                
+                <div id="mealsList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- JSにて動的描画 -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 今日の詳細分析モーダル -->
+    <div id="dailyDetailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- ヘッダー -->
+            <div class="bg-lime-600 text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center">
+                    <i class="fa-solid fa-chart-pie mr-2 text-yellow-300"></i>
+                    <span>今日の詳細栄養分析レポート</span>
+                </h3>
+                <button onclick="toggleModal('dailyDetailModal')" class="text-white hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- ボディ（スクロール可能） -->
+            <div class="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs">
+                <!-- 選択日の表示 -->
+                <div class="flex items-center justify-between bg-lime-50 p-3 rounded-2xl border border-lime-100">
+                    <span class="font-bold text-lime-800 flex items-center">
+                        <i class="fa-regular fa-calendar-check mr-1.5 text-base"></i>
+                        対象日：<span id="detailModalDate" class="ml-1">----/--/--</span>
+                    </span>
+                    <span id="detailModalMealCount" class="bg-white px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 border border-slate-200 shadow-sm">登録: 0件</span>
+                </div>
+
+                <!-- 19大栄養素を4つのグループに分けて表示 -->
+                <div class="space-y-6">
+                    <h4 class="font-bold text-slate-700 text-sm border-l-4 border-lime-500 pl-2">詳細栄養素バランス</h4>
+                    
+                    <!-- 1. 炭水化物・糖質・食物繊維 -->
+                    <div class="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <h5 class="font-bold text-indigo-700 text-[11px] flex items-center"><i class="fa-solid fa-wheat-awn mr-1.5"></i> 糖質・食物繊維系</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="detailSugarFiberGrid">
+                            <!-- JSにて動的生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 2. 主要ミネラル -->
+                    <div class="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <h5 class="font-bold text-amber-700 text-[11px] flex items-center"><i class="fa-solid fa-cubes-stacked mr-1.5"></i> 主要ミネラル</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="detailMineralGrid">
+                            <!-- JSにて動的生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 3. 主要ビタミン -->
+                    <div class="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <h5 class="font-bold text-emerald-700 text-[11px] flex items-center"><i class="fa-solid fa-capsules mr-1.5"></i> 主要ビタミン</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="detailVitaminGrid">
+                            <!-- JSにて動的生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 4. 脂質・塩分（過剰制限項目） -->
+                    <div class="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <h5 class="font-bold text-rose-700 text-[11px] flex items-center"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> 脂質・塩分（過剰管理上限）</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="detailExcessGrid">
+                            <!-- JSにて動的生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 登録済食事ごとの詳細な栄養内訳テーブル -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-700 text-sm border-l-4 border-lime-500 pl-2">登録食品リストと詳細テーブル</h4>
+                    
+                    <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-inner bg-white">
+                        <table class="w-full text-left border-collapse min-w-[2000px]">
+                            <thead>
+                                <tr class="bg-slate-100/90 text-[10px] text-slate-600 uppercase font-bold border-b border-slate-200">
+                                    <th class="p-3 sticky left-0 bg-slate-100 z-10 w-48 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">食事名・区分</th>
+                                    <th class="p-3 text-right">カロリー</th>
+                                    <th class="p-3 text-right">P (g)</th>
+                                    <th class="p-3 text-right">F (g)</th>
+                                    <th class="p-3 text-right">C (g)</th>
+                                    <th class="p-3 text-right">炭水化物 (g)</th>
+                                    <th class="p-3 text-right">糖質 (g)</th>
+                                    <th class="p-3 text-right font-bold text-amber-700">カリウム (mg)</th>
+                                    <th class="p-3 text-right font-bold text-amber-700">カルシウム (mg)</th>
+                                    <th class="p-3 text-right font-bold text-amber-700">マグネシウム (mg)</th>
+                                    <th class="p-3 text-right font-bold text-amber-700">鉄 (mg)</th>
+                                    <th class="p-3 text-right font-bold text-amber-700">亜鉛 (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンA (μgRE)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンD (μg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンE (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンB1 (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンB2 (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンB6 (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">ビタミンB12 (μg)</th>
+                                    <th class="p-3 text-right text-emerald-700 font-bold">ビタミンC (mg)</th>
+                                    <th class="p-3 text-right text-emerald-700">葉酸 (μg)</th>
+                                    <th class="p-3 text-right font-bold text-indigo-700">食物繊維 (g)</th>
+                                    <th class="p-3 text-right font-bold text-rose-700">飽和脂肪酸 (g)</th>
+                                    <th class="p-3 text-right font-bold text-rose-700">塩分 (g)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailTableBody" class="divide-y divide-slate-100 font-bold text-slate-600">
+                                <!-- JSにて動的に埋め込み -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- フッター -->
+            <div class="bg-slate-50 p-4 border-t flex space-x-2">
+                <button onclick="toggleModal('dailyDetailModal')" class="w-full bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-2xl text-xs transition-colors shadow-md">
+                    詳細レポートを閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APIキー設定用モーダル -->
+    <div id="apiSettingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div class="bg-slate-800 text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center">
+                    <i class="fa-solid fa-key mr-2 text-yellow-300"></i>
+                    <span>Gemini APIキー設定</span>
+                </h3>
+                <button onclick="toggleModal('apiSettingsModal')" class="text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-4 text-xs">
+                <p class="text-slate-600 leading-relaxed font-medium">
+                    AI（最新モデル: **`gemini-3-flash-preview`**）による栄養判定や音声アドバイス機能を利用するには、ご自身の Gemini APIキー が必要です。キーはお使いのブラウザにのみ安全に保存されます。
+                </p>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Gemini API キー</label>
+                    <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="w-full border border-slate-200 rounded-xl px-3 py-2 font-mono">
+                </div>
+            </div>
+            <div class="bg-slate-50 p-3 border-t flex space-x-2">
+                <button onclick="toggleModal('apiSettingsModal')" class="flex-1 bg-white border text-slate-600 font-bold py-2 rounded-xl text-xs">閉じる</button>
+                <button onclick="saveApiKey()" class="flex-1 bg-lime-600 hover:bg-lime-700 text-white font-bold py-2 rounded-xl text-xs">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 同期用QRコード表示モーダル -->
+    <div id="syncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div class="bg-lime-600 text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center">
+                    <i class="fa-solid fa-rotate mr-2"></i>
+                    <span>スマホと同期する</span>
+                </h3>
+                <button onclick="toggleModal('syncModal')" class="text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-4 text-xs text-center">
+                <p class="text-slate-600 font-medium leading-relaxed">
+                    スマホのカメラで下記のQRコードをスキャンすると、データがリアルタイム同期されます。
+                </p>
+                <div class="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-100 shadow-inner">
+                    <img id="syncQrCode" src="" alt="QR Code" class="w-40 h-40 mx-auto">
+                </div>
+                <div class="bg-lime-50 border border-lime-100 p-3 rounded-2xl text-left">
+                    <p class="font-bold text-lime-800 mb-1 text-[10px]">専用同期URL：</p>
+                    <div class="flex items-center justify-between space-x-2">
+                        <input type="text" id="syncUrlText" readonly class="bg-white border border-slate-200 rounded px-2 py-1 text-[10px] text-slate-500 font-mono w-full truncate">
+                        <button onclick="copySyncUrl()" class="bg-white hover:bg-lime-100 text-lime-700 text-[10px] font-bold px-2 py-1 rounded border shadow-sm flex-shrink-0">コピー</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-3 border-t">
+                <button onclick="toggleModal('syncModal')" class="w-full bg-lime-600 hover:bg-lime-700 text-white font-bold py-2 rounded-xl text-xs">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 目標設定モーダル -->
+    <div id="profileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-lime-600 text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center">
+                    <i class="fa-solid fa-bullseye mr-2"></i>
+                    <span>栄養素目標設定</span>
+                </h3>
+                <button onclick="toggleModal('profileModal')" class="text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4 text-xs">
+                <!-- 三大栄養素 -->
+                <div>
+                    <h4 class="font-bold text-lime-700 border-l-4 border-lime-500 pl-1.5 mb-2">PFC目標</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">目標カロリー (kcal)</label>
+                            <input type="number" id="targetCalInput" value="2000" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">たんぱく質目標 (g)</label>
+                            <input type="number" id="targetPInput" value="60" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">脂質目標 (g)</label>
+                            <input type="number" id="targetFInput" value="60" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">炭水化物目標 (g)</label>
+                            <input type="number" id="targetCInput" value="275" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 糖質・食物繊維 -->
+                <div>
+                    <h4 class="font-bold text-indigo-700 border-l-4 border-indigo-500 pl-1.5 mb-2">糖質・食物繊維目標</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">炭水化物(実数) (g)</label>
+                            <input type="number" id="targetCarbohydrateInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">糖質目標 (g)</label>
+                            <input type="number" id="targetSugarInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">食物繊維目標 (g)</label>
+                            <input type="number" id="targetFiberInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 主要ミネラル -->
+                <div>
+                    <h4 class="font-bold text-amber-700 border-l-4 border-amber-500 pl-1.5 mb-2">主要ミネラル目標</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">カリウム (mg)</label>
+                            <input type="number" id="targetPotassiumInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">カルシウム (mg)</label>
+                            <input type="number" id="targetCalciumInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">マグネシウム (mg)</label>
+                            <input type="number" id="targetMagnesiumInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">鉄 (mg)</label>
+                            <input type="number" id="targetIronInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">亜鉛 (mg)</label>
+                            <input type="number" id="targetZincInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ビタミン -->
+                <div>
+                    <h4 class="font-bold text-emerald-700 border-l-4 border-emerald-500 pl-1.5 mb-2">主要ビタミン目標</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンA (μgRE)</label>
+                            <input type="number" id="targetVitaminAInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンD (μg)</label>
+                            <input type="number" id="targetVitaminDInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンE (mg)</label>
+                            <input type="number" id="targetVitaminEInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンB1 (mg)</label>
+                            <input type="number" id="targetVitaminB1Input" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンB2 (mg)</label>
+                            <input type="number" id="targetVitaminB2Input" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンB6 (mg)</label>
+                            <input type="number" id="targetVitaminB6Input" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンB12 (μg)</label>
+                            <input type="number" id="targetVitaminB12Input" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">ビタミンC (mg)</label>
+                            <input type="number" id="targetVitaminCInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-1">葉酸 (μg)</label>
+                            <input type="number" id="targetFolateInput" class="w-full border border-slate-200 rounded-lg px-2 py-1 font-bold" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 脂質・塩分（過多項目） -->
+                <div>
+                    <h4 class="font-bold text-rose-700 border-l-4 border-rose-500 pl-1.5 mb-2">過剰・過多管理目標</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">飽和脂肪酸上限 (g)</label>
+                            <input type="number" id="targetSaturatedFatInput" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">塩分上限 (g)</label>
+                            <input type="number" id="targetSaltInput" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold" step="any">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-3 border-t flex space-x-2">
+                <button onclick="toggleModal('profileModal')" class="flex-1 bg-white border text-slate-600 font-bold py-2 rounded-xl text-xs">閉じる</button>
+                <button onclick="saveProfile()" class="flex-1 bg-lime-600 hover:bg-lime-700 text-white font-bold py-2 rounded-xl text-xs">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="toastContent" class="px-5 py-2.5 rounded-full text-xs font-bold shadow-lg flex items-center space-x-2 text-white bg-lime-600">
+            <!-- 動的挿入 -->
+        </div>
+    </div>
+
+    <!-- Firebase と アプリケーションのビジネスロジック -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // グローバル用のアプリ構成
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asuken-ai-simple';
+        const rawFirebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        
+        let app, db, auth;
+        let isFirebaseMock = true;
+
+        if (rawFirebaseConfig) {
+            try {
+                const firebaseConfig = JSON.parse(rawFirebaseConfig);
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isFirebaseMock = false;
+            } catch (e) {
+                console.error("Firebase初期化失敗。モック/ローカルモードで動作します。", e);
+            }
+        }
+
+        window.isFirebaseMock = isFirebaseMock;
+        window.db = db;
+        window.appId = appId;
+
+        // 同期用キーの初期化
+        const urlParams = new URLSearchParams(window.location.search);
+        let syncKey = urlParams.get('key');
+
+        if (syncKey) {
+            localStorage.setItem('my_shared_sync_key', syncKey);
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        } else {
+            syncKey = localStorage.getItem('my_shared_sync_key');
+            if (!syncKey) {
+                const randomHex = Math.random().toString(16).substring(2, 10).toUpperCase();
+                syncKey = `USR-${randomHex}`;
+                localStorage.setItem('my_shared_sync_key', syncKey);
+            }
+        }
+
+        let profile = JSON.parse(localStorage.getItem('my_diet_profile')) || {
+            caloriesTarget: 2000,
+            proteinTarget: 60,
+            fatTarget: 60,
+            carbsTarget: 275,
+            
+            carbohydrateTarget: 275,
+            sugarTarget: 250,
+            potassiumTarget: 2500,
+            calciumTarget: 650,
+            magnesiumTarget: 320,
+            ironTarget: 7.5,
+            zincTarget: 10,
+            vitaminATarget: 800,
+            vitaminDTarget: 8.5,
+            vitaminETarget: 6.0,
+            vitaminB1Target: 1.2,
+            vitaminB2Target: 1.4,
+            vitaminB6Target: 1.4,
+            vitaminB12Target: 2.4,
+            vitaminCTarget: 100,
+            folateTarget: 240,
+            fiberTarget: 18,
+            saturatedFatTarget: 15,
+            saltTarget: 7.0
+        };
+        
+        let selectedDate = new Date().toISOString().split('T')[0];
+        let mealCategory = 'breakfast';
+        let activeTab = 'text';
+        let selectedImageBase64 = null;
+        let allMeals = [];
+        let ttsAudioElement = null;
+        let isTtsPlaying = false;
+        let adviceText = '';
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('datePicker').value = selectedDate;
+            
+            document.getElementById('targetCalInput').value = profile.caloriesTarget;
+            document.getElementById('targetPInput').value = profile.proteinTarget;
+            document.getElementById('targetFInput').value = profile.fatTarget;
+            document.getElementById('targetCInput').value = profile.carbsTarget;
+
+            // 19栄養素の目標設定反映
+            document.getElementById('targetCarbohydrateInput').value = profile.carbohydrateTarget !== undefined ? profile.carbohydrateTarget : 275;
+            document.getElementById('targetSugarInput').value = profile.sugarTarget !== undefined ? profile.sugarTarget : 250;
+            document.getElementById('targetPotassiumInput').value = profile.potassiumTarget !== undefined ? profile.potassiumTarget : 2500;
+            document.getElementById('targetCalciumInput').value = profile.calciumTarget !== undefined ? profile.calciumTarget : 650;
+            document.getElementById('targetMagnesiumInput').value = profile.magnesiumTarget !== undefined ? profile.magnesiumTarget : 320;
+            document.getElementById('targetIronInput').value = profile.ironTarget !== undefined ? profile.ironTarget : 7.5;
+            document.getElementById('targetZincInput').value = profile.zincTarget !== undefined ? profile.zincTarget : 10;
+            document.getElementById('targetVitaminAInput').value = profile.vitaminATarget !== undefined ? profile.vitaminATarget : 800;
+            document.getElementById('targetVitaminDInput').value = profile.vitaminDTarget !== undefined ? profile.vitaminDTarget : 8.5;
+            document.getElementById('targetVitaminEInput').value = profile.vitaminETarget !== undefined ? profile.vitaminETarget : 6.0;
+            document.getElementById('targetVitaminB1Input').value = profile.vitaminB1Target !== undefined ? profile.vitaminB1Target : 1.2;
+            document.getElementById('targetVitaminB2Input').value = profile.vitaminB2Target !== undefined ? profile.vitaminB2Target : 1.4;
+            document.getElementById('targetVitaminB6Input').value = profile.vitaminB6Target !== undefined ? profile.vitaminB6Target : 1.4;
+            document.getElementById('targetVitaminB12Input').value = profile.vitaminB12Target !== undefined ? profile.vitaminB12Target : 2.4;
+            document.getElementById('targetVitaminCInput').value = profile.vitaminCTarget !== undefined ? profile.vitaminCTarget : 100;
+            document.getElementById('targetFolateInput').value = profile.folateTarget !== undefined ? profile.folateTarget : 240;
+            document.getElementById('targetFiberInput').value = profile.fiberTarget !== undefined ? profile.fiberTarget : 18;
+            document.getElementById('targetSaturatedFatInput').value = profile.saturatedFatTarget !== undefined ? profile.saturatedFatTarget : 15;
+            document.getElementById('targetSaltInput').value = profile.saltTarget !== undefined ? profile.saltTarget : 7.0;
+
+            const storedKey = localStorage.getItem('gemini_api_key') || "";
+            document.getElementById('geminiApiKeyInput').value = storedKey;
+
+            await initAuthAndSync();
+            updateUI();
+        });
+
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    }
+                } catch (err) {
+                    if (i === maxRetries - 1) throw err;
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+            throw new Error("APIリクエストの送信に失敗しました");
+        }
+
+        function getApiKey() {
+            const key = localStorage.getItem('gemini_api_key') || "";
+            if (!key) {
+                toggleModal('apiSettingsModal');
+                showToast("画面右上の「API設定」からGemini APIキーを設定してください", true);
+                return null;
+            }
+            return key;
+        }
+
+        window.saveApiKey = function() {
+            const key = document.getElementById('geminiApiKeyInput').value.trim();
+            localStorage.setItem('gemini_api_key', key);
+            toggleModal('apiSettingsModal');
+            showToast("APIキーを保存しました！");
+        }
+
+        async function initAuthAndSync() {
+            if (isFirebaseMock) {
+                const localMeals = JSON.parse(localStorage.getItem(`meals_${syncKey}`) || '[]');
+                allMeals = localMeals;
+                updateUI();
+                return;
+            }
+
+            try {
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (!user) return;
+                    
+                    const mealsQuery = query(
+                        collection(db, 'artifacts', appId, 'public', 'data', 'meals'),
+                        where('sharedKey', '==', syncKey)
+                    );
+
+                    onSnapshot(mealsQuery, (snapshot) => {
+                        const loaded = [];
+                        snapshot.forEach((snap) => {
+                            loaded.push({ id: snap.id, ...snap.data() });
+                        });
+                        allMeals = loaded;
+                        updateUI();
+                    }, (error) => {
+                        console.error("Firestore同期エラー:", error);
+                    });
+
+                    const profileDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', syncKey);
+                    onSnapshot(profileDocRef, (snap) => {
+                        if (snap.exists()) {
+                            profile = snap.data();
+                            localStorage.setItem('my_diet_profile', JSON.stringify(profile));
+                            updateUI();
+                        }
+                    }, (error) => {
+                        console.error("プロフィール同期エラー:", error);
+                    });
+                });
+
+            } catch (error) {
+                console.error("Auth接続エラー:", error);
+                const localMeals = JSON.parse(localStorage.getItem(`meals_${syncKey}`) || '[]');
+                allMeals = localMeals;
+                updateUI();
+            }
+        }
+
+        window.updateUI = function() {
+            document.getElementById('targetCaloriesLabel').innerText = `/ ${profile.caloriesTarget || 2000} kcal`;
+            
+            const todaysMeals = allMeals.filter(m => m.date === selectedDate);
+            let totalCal = 0, totalP = 0, totalF = 0, totalC = 0;
+
+            todaysMeals.forEach(m => {
+                totalCal += Number(m.calories) || 0;
+                totalP += Number(m.protein) || 0;
+                totalF += Number(m.fat) || 0;
+                totalC += Number(m.carbs) || 0;
+            });
+
+            document.getElementById('currentCalories').innerText = Math.round(totalCal);
+            document.getElementById('proteinText').innerText = `${Math.round(totalP)}g / ${profile.proteinTarget || 60}g (${getPct(totalP, profile.proteinTarget)}%)`;
+            document.getElementById('fatText').innerText = `${Math.round(totalF)}g / ${profile.fatTarget || 60}g (${getPct(totalF, profile.fatTarget)}%)`;
+            document.getElementById('carbsText').innerText = `${Math.round(totalC)}g / ${profile.carbsTarget || 275}g (${getPct(totalC, profile.carbsTarget)}%)`;
+
+            const calPct = Math.min(totalCal / (profile.caloriesTarget || 2000), 1);
+            const strokeDashOffset = 2 * Math.PI * 70 * (1 - calPct);
+            const circleElement = document.getElementById('calorieCircle');
+            circleElement.setAttribute('stroke-dasharray', 2 * Math.PI * 70);
+            circleElement.style.strokeDashoffset = strokeDashOffset;
+
+            document.getElementById('proteinBar').style.width = `${Math.min(getPct(totalP, profile.proteinTarget), 100)}%`;
+            document.getElementById('fatBar').style.width = `${Math.min(getPct(totalF, profile.fatTarget), 100)}%`;
+            document.getElementById('carbsBar').style.width = `${Math.min(getPct(totalC, profile.carbsTarget), 100)}%`;
+
+            const listContainer = document.getElementById('mealsList');
+            document.getElementById('mealCountLabel').innerText = `${todaysMeals.length}件`;
+
+            if (todaysMeals.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 text-xs font-bold">
+                        <i class="fa-solid fa-utensils text-3xl mb-2 text-slate-200"></i>
+                        <p>今日の食事はまだ登録されていません</p>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = todaysMeals.map(meal => {
+                    const sugar = meal.sugar || 0;
+                    const salt = meal.salt || 0;
+                    const calcium = meal.calcium || 0;
+                    return `
+                        <div class="p-3.5 border border-slate-100 hover:border-lime-200 bg-slate-50/55 rounded-2xl flex justify-between items-center transition-all">
+                            <div class="space-y-0.5">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${getCategoryBadgeClass(meal.category)}">
+                                        ${getCategoryName(meal.category)}
+                                    </span>
+                                    <h4 class="font-extrabold text-slate-700 text-xs">${escapeHTML(meal.name)}</h4>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-400 font-extrabold">
+                                    <span class="text-lime-600">${Math.round(meal.calories)} kcal</span>
+                                    <span>P:${Math.round(meal.protein)}g</span>
+                                    <span>F:${Math.round(meal.fat)}g</span>
+                                    <span>C:${Math.round(meal.carbs)}g</span>
+                                    ${sugar > 0 ? `<span class="text-indigo-500">糖質:${Math.round(sugar)}g</span>` : ''}
+                                    ${calcium > 0 ? `<span class="text-amber-600">Ca:${Math.round(calcium)}mg</span>` : ''}
+                                    ${salt > 0 ? `<span class="text-rose-500">塩分:${salt.toFixed(1)}g</span>` : ''}
+                                </div>
+                            </div>
+                            <button onclick="deleteMealItem('${meal.id}')" class="text-slate-300 hover:text-red-500 p-2 rounded-full transition-colors">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        window.toggleDetailedInputAccordion = function() {
+            const container = document.getElementById('detailedInputContainer');
+            const icon = document.getElementById('accordionIcon');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                container.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function expandDetailedInput() {
+            const container = document.getElementById('detailedInputContainer');
+            const icon = document.getElementById('accordionIcon');
+            container.classList.remove('hidden');
+            icon.style.transform = 'rotate(180deg)';
+        }
+
+        function getPct(curr, target) {
+            if (!target) return 0;
+            return Math.round((curr / target) * 100);
+        }
+
+        function getCategoryName(cat) {
+            const mapper = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食' };
+            return mapper[cat] || '食事';
+        }
+
+        function getCategoryBadgeClass(cat) {
+            if (cat === 'breakfast') return 'bg-orange-100 text-orange-800';
+            if (cat === 'lunch') return 'bg-amber-100 text-amber-800';
+            if (cat === 'dinner') return 'bg-indigo-100 text-indigo-800';
+            return 'bg-slate-100 text-slate-800';
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        window.changeDate = function(offset) {
+            const current = new Date(selectedDate);
+            current.setDate(current.getDate() + offset);
+            selectedDate = current.toISOString().split('T')[0];
+            document.getElementById('datePicker').value = selectedDate;
+            updateUI();
+            
+            document.getElementById('adviceContent').innerText = "今日の食事バランスに基づいたアドバイスを作成してみましょう！";
+            document.getElementById('ttsButton').disabled = true;
+            if (ttsAudioElement) {
+                ttsAudioElement.pause();
+                isTtsPlaying = false;
+                document.getElementById('ttsIcon').className = 'fa-solid fa-volume-high';
+            }
+        }
+
+        window.onDateChanged = function(val) {
+            selectedDate = val;
+            updateUI();
+        }
+
+        window.setCategory = function(cat) {
+            mealCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.className = 'cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center border-transparent text-slate-500 bg-slate-50';
+            });
+            
+            let colorClass = 'border-slate-500 text-slate-600 bg-slate-50';
+            if (cat === 'breakfast') colorClass = 'border-orange-500 text-orange-600 bg-orange-50';
+            if (cat === 'lunch') colorClass = 'border-amber-500 text-amber-600 bg-amber-50';
+            if (cat === 'dinner') colorClass = 'border-indigo-500 text-indigo-600 bg-indigo-50';
+
+            document.getElementById(`cat_${cat}`).className = `cat-btn border-2 py-1.5 rounded-xl text-xs font-bold text-center ${colorClass}`;
+        }
+
+        window.setTab = function(tab) {
+            activeTab = tab;
+            document.getElementById('tab_text').className = `flex-1 py-2 text-center border-b-2 ${tab === 'text' ? 'border-lime-600 text-lime-700' : 'border-transparent text-slate-400'}`;
+            document.getElementById('tab_image').className = `flex-1 py-2 text-center border-b-2 ${tab === 'image' ? 'border-lime-600 text-lime-700' : 'border-transparent text-slate-400'}`;
+            document.getElementById('tab_manual').className = `flex-1 py-2 text-center border-b-2 ${tab === 'manual' ? 'border-lime-600 text-lime-700' : 'border-transparent text-slate-400'}`;
+
+            const textTab = document.getElementById('tabContent_text');
+            const imageTab = document.getElementById('tabContent_image');
+            const manualTab = document.getElementById('tabContent_manual');
+
+            textTab.classList.add('hidden');
+            imageTab.classList.add('hidden');
+            manualTab.classList.add('hidden');
+
+            if (tab === 'text') {
+                textTab.classList.remove('hidden');
+            } else if (tab === 'image') {
+                imageTab.classList.remove('hidden');
+            } else if (tab === 'manual') {
+                manualTab.classList.remove('hidden');
+            }
+        }
+
+        window.analyzeMealText = async function() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            const queryText = document.getElementById('textMealInput').value.trim();
+            if (!queryText) {
+                showToast("何を食べたか入力してください", true);
+                return;
+            }
+
+            const btn = document.getElementById('btnAnalyzeText');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i> AI栄養判定中...';
+
+            try {
+                const prompt = `以下の食事内容から、料理の代表名称をまとめ、エネルギー(kcal), タンパク質(P:g), 脂質(F:g), 炭水化物(C:g), 糖質(g), カリウム(mg), カルシウム(mg), マグネシウム(mg), 鉄(mg), 亜鉛(mg), ビタミンA(μgRE), ビタミンD(μg), ビタミンE(mg), ビタミンB1(mg), ビタミンB2(mg), ビタミンB6(mg), ビタミンB12(μg), ビタミンC(mg), 葉酸(μg), 食物繊維(g), 飽和脂肪酸(g), 塩分(g)を正確に推定してください。
+食事内容: "${queryText}"`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                mealName: { type: "STRING" },
+                                calories: { type: "NUMBER" },
+                                protein: { type: "NUMBER" },
+                                fat: { type: "NUMBER" },
+                                carbs: { type: "NUMBER", description: "炭水化物(PFCバランス算出用)" },
+                                carbohydrate: { type: "NUMBER", description: "炭水化物(g)" },
+                                sugar: { type: "NUMBER", description: "糖質(g)" },
+                                potassium: { type: "NUMBER", description: "カリウム(mg)" },
+                                calcium: { type: "NUMBER", description: "カルシウム(mg)" },
+                                magnesium: { type: "NUMBER", description: "マグネシウム(mg)" },
+                                iron: { type: "NUMBER", description: "鉄(mg)" },
+                                zinc: { type: "NUMBER", description: "亜鉛(mg)" },
+                                vitaminA: { type: "NUMBER", description: "ビタミンA(μgRE)" },
+                                vitaminD: { type: "NUMBER", description: "ビタミンD(μg)" },
+                                vitaminE: { type: "NUMBER", description: "ビタミンE(mg)" },
+                                vitaminB1: { type: "NUMBER", description: "ビタミンB1(mg)" },
+                                vitaminB2: { type: "NUMBER", description: "ビタミンB2(mg)" },
+                                vitaminB6: { type: "NUMBER", description: "ビタミンB6(mg)" },
+                                vitaminB12: { type: "NUMBER", description: "ビタミンB12(μg)" },
+                                vitaminC: { type: "NUMBER", description: "ビタミンC(mg)" },
+                                folate: { type: "NUMBER", description: "葉酸(μg)" },
+                                fiber: { type: "NUMBER", description: "食物繊維(g)" },
+                                saturatedFat: { type: "NUMBER", description: "飽和脂肪酸(g)" },
+                                salt: { type: "NUMBER", description: "塩分(g)" }
+                            },
+                            required: [
+                                "mealName", "calories", "protein", "fat", "carbs",
+                                "carbohydrate", "sugar", "potassium", "calcium", "magnesium", "iron", "zinc",
+                                "vitaminA", "vitaminD", "vitaminE", "vitaminB1", "vitaminB2", "vitaminB6", "vitaminB12",
+                                "vitaminC", "folate", "fiber", "saturatedFat", "salt"
+                            ]
+                        }
+                    }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const res = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const resultData = await res.json();
+                const text = resultData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    fillNutrientsForm(JSON.parse(text));
+                    expandDetailedInput();
+                    showToast("栄養分析が完了しました！");
+                } else {
+                    throw new Error("解析データが空です");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("AI解析に失敗しました。", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'AIで一括栄養判定';
+            }
+        }
+
+        window.handleImageFile = function(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImageBase64 = e.target.result;
+                    document.getElementById('imagePreview').src = selectedImageBase64;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                    document.getElementById('btnAnalyzeImage').disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.resetImageSelection = function() {
+            selectedImageBase64 = null;
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('btnAnalyzeImage').disabled = true;
+        }
+
+        window.analyzeMealImage = async function() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            if (!selectedImageBase64) return;
+
+            const btn = document.getElementById('btnAnalyzeImage');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i> 画像分析中...';
+
+            try {
+                const base64Data = selectedImageBase64.split(',')[1];
+                const mimeType = selectedImageBase64.split(',')[0].split(':')[1].split(';')[0];
+                
+                const prompt = "料理写真の内容を詳細にマルチモーダル解析してください。代表的な料理名、および19種類の詳細な栄養成分（エネルギー、P, F, C, 糖質, カリウム, カルシウム, マグネシウム, 鉄, 亜鉛, ビタミンA,D,E,B群,C, 葉酸, 食物繊維, 飽和脂肪酸, 塩分）を推測してください。";
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: base64Data
+                                }
+                            }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                mealName: { type: "STRING" },
+                                calories: { type: "NUMBER" },
+                                protein: { type: "NUMBER" },
+                                fat: { type: "NUMBER" },
+                                carbs: { type: "NUMBER" },
+                                carbohydrate: { type: "NUMBER" },
+                                sugar: { type: "NUMBER" },
+                                potassium: { type: "NUMBER" },
+                                calcium: { type: "NUMBER" },
+                                magnesium: { type: "NUMBER" },
+                                iron: { type: "NUMBER" },
+                                zinc: { type: "NUMBER" },
+                                vitaminA: { type: "NUMBER" },
+                                vitaminD: { type: "NUMBER" },
+                                vitaminE: { type: "NUMBER" },
+                                vitaminB1: { type: "NUMBER" },
+                                vitaminB2: { type: "NUMBER" },
+                                vitaminB6: { type: "NUMBER" },
+                                vitaminB12: { type: "NUMBER" },
+                                vitaminC: { type: "NUMBER" },
+                                folate: { type: "NUMBER" },
+                                fiber: { type: "NUMBER" },
+                                saturatedFat: { type: "NUMBER" },
+                                salt: { type: "NUMBER" }
+                            },
+                            required: [
+                                "mealName", "calories", "protein", "fat", "carbs",
+                                "carbohydrate", "sugar", "potassium", "calcium", "magnesium", "iron", "zinc",
+                                "vitaminA", "vitaminD", "vitaminE", "vitaminB1", "vitaminB2", "vitaminB6", "vitaminB12",
+                                "vitaminC", "folate", "fiber", "saturatedFat", "salt"
+                            ]
+                        }
+                    }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const res = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const resultData = await res.json();
+                const text = resultData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    fillNutrientsForm(JSON.parse(text));
+                    expandDetailedInput();
+                    showToast("写真の画像解析を完了しました！");
+                } else {
+                    throw new Error("解析結果なし");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("画像解析に失敗しました。", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'AI画像分析を開始';
+            }
+        }
+
+        function fillNutrientsForm(parsed) {
+            document.getElementById('mealName').value = parsed.mealName || '';
+            document.getElementById('mealCalories').value = parsed.calories !== undefined ? Math.round(parsed.calories * 10) / 10 : 0;
+            document.getElementById('mealProtein').value = parsed.protein !== undefined ? Math.round(parsed.protein * 10) / 10 : 0;
+            document.getElementById('mealFat').value = parsed.fat !== undefined ? Math.round(parsed.fat * 10) / 10 : 0;
+            document.getElementById('mealCarbs').value = parsed.carbs !== undefined ? Math.round(parsed.carbs * 10) / 10 : 0;
+            
+            // 19項目
+            document.getElementById('mealCarbohydrate').value = parsed.carbohydrate !== undefined ? Math.round(parsed.carbohydrate * 10) / 10 : 0;
+            document.getElementById('mealSugar').value = parsed.sugar !== undefined ? Math.round(parsed.sugar * 10) / 10 : 0;
+            document.getElementById('mealPotassium').value = parsed.potassium !== undefined ? Math.round(parsed.potassium) : 0;
+            document.getElementById('mealCalcium').value = parsed.calcium !== undefined ? Math.round(parsed.calcium) : 0;
+            document.getElementById('mealMagnesium').value = parsed.magnesium !== undefined ? Math.round(parsed.magnesium) : 0;
+            document.getElementById('mealIron').value = parsed.iron !== undefined ? Math.round(parsed.iron * 10) / 10 : 0;
+            document.getElementById('mealZinc').value = parsed.zinc !== undefined ? Math.round(parsed.zinc * 10) / 10 : 0;
+            document.getElementById('mealVitaminA').value = parsed.vitaminA !== undefined ? Math.round(parsed.vitaminA) : 0;
+            document.getElementById('mealVitaminD').value = parsed.vitaminD !== undefined ? Math.round(parsed.vitaminD * 10) / 10 : 0;
+            document.getElementById('mealVitaminE').value = parsed.vitaminE !== undefined ? Math.round(parsed.vitaminE * 10) / 10 : 0;
+            document.getElementById('mealVitaminB1').value = parsed.vitaminB1 !== undefined ? Math.round(parsed.vitaminB1 * 100) / 100 : 0;
+            document.getElementById('mealVitaminB2').value = parsed.vitaminB2 !== undefined ? Math.round(parsed.vitaminB2 * 100) / 100 : 0;
+            document.getElementById('mealVitaminB6').value = parsed.vitaminB6 !== undefined ? Math.round(parsed.vitaminB6 * 100) / 100 : 0;
+            document.getElementById('mealVitaminB12').value = parsed.vitaminB12 !== undefined ? Math.round(parsed.vitaminB12 * 10) / 10 : 0;
+            document.getElementById('mealVitaminC').value = parsed.vitaminC !== undefined ? Math.round(parsed.vitaminC) : 0;
+            document.getElementById('mealFolate').value = parsed.folate !== undefined ? Math.round(parsed.folate) : 0;
+            document.getElementById('mealFiber').value = parsed.fiber !== undefined ? Math.round(parsed.fiber * 10) / 10 : 0;
+            document.getElementById('mealSaturatedFat').value = parsed.saturatedFat !== undefined ? Math.round(parsed.saturatedFat * 10) / 10 : 0;
+            document.getElementById('mealSalt').value = parsed.salt !== undefined ? Math.round(parsed.salt * 10) / 10 : 0;
+        }
+
+        window.saveMeal = async function() {
+            const name = document.getElementById('mealName').value.trim();
+            const cal = Number(document.getElementById('mealCalories').value) || 0;
+            const p = Number(document.getElementById('mealProtein').value) || 0;
+            const f = Number(document.getElementById('mealFat').value) || 0;
+            const c = Number(document.getElementById('mealCarbs').value) || 0;
+
+            const carbohydrate = Number(document.getElementById('mealCarbohydrate').value) || 0;
+            const sugar = Number(document.getElementById('mealSugar').value) || 0;
+            const potassium = Number(document.getElementById('mealPotassium').value) || 0;
+            const calcium = Number(document.getElementById('mealCalcium').value) || 0;
+            const magnesium = Number(document.getElementById('mealMagnesium').value) || 0;
+            const iron = Number(document.getElementById('mealIron').value) || 0;
+            const zinc = Number(document.getElementById('mealZinc').value) || 0;
+            const vitaminA = Number(document.getElementById('mealVitaminA').value) || 0;
+            const vitaminD = Number(document.getElementById('mealVitaminD').value) || 0;
+            const vitaminE = Number(document.getElementById('mealVitaminE').value) || 0;
+            const vitaminB1 = Number(document.getElementById('mealVitaminB1').value) || 0;
+            const vitaminB2 = Number(document.getElementById('mealVitaminB2').value) || 0;
+            const vitaminB6 = Number(document.getElementById('mealVitaminB6').value) || 0;
+            const vitaminB12 = Number(document.getElementById('mealVitaminB12').value) || 0;
+            const vitaminC = Number(document.getElementById('mealVitaminC').value) || 0;
+            const folate = Number(document.getElementById('mealFolate').value) || 0;
+            const fiber = Number(document.getElementById('mealFiber').value) || 0;
+            const saturatedFat = Number(document.getElementById('mealSaturatedFat').value) || 0;
+            const salt = Number(document.getElementById('mealSalt').value) || 0;
+
+            if (!name) {
+                showToast("メニュー名を入力してください", true);
+                return;
+            }
+
+            const item = {
+                sharedKey: syncKey,
+                date: selectedDate,
+                category: mealCategory,
+                name: name,
+                calories: cal,
+                protein: p,
+                fat: f,
+                carbs: c,
+                
+                carbohydrate: carbohydrate,
+                sugar: sugar,
+                potassium: potassium,
+                calcium: calcium,
+                magnesium: magnesium,
+                iron: iron,
+                zinc: zinc,
+                vitaminA: vitaminA,
+                vitaminD: vitaminD,
+                vitaminE: vitaminE,
+                vitaminB1: vitaminB1,
+                vitaminB2: vitaminB2,
+                vitaminB6: vitaminB6,
+                vitaminB12: vitaminB12,
+                vitaminC: vitaminC,
+                folate: folate,
+                fiber: fiber,
+                saturatedFat: saturatedFat,
+                salt: salt,
+                createdAt: new Date().toISOString()
+            };
+
+            if (isFirebaseMock) {
+                const local = JSON.parse(localStorage.getItem(`meals_${syncKey}`) || '[]');
+                const newItem = { id: 'local_' + Date.now(), ...item };
+                local.push(newItem);
+                localStorage.setItem(`meals_${syncKey}`, JSON.stringify(local));
+                allMeals = local;
+                updateUI();
+                showToast("食事を登録しました");
+            } else {
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'meals'), item);
+                    showToast("登録を完了しました！");
+                } catch (e) {
+                    console.error("Firestore登録エラー:", e);
+                    showToast("登録に失敗しました", true);
+                }
+            }
+
+            // フォームクリア
+            document.getElementById('mealName').value = '';
+            document.getElementById('mealCalories').value = '';
+            document.getElementById('mealProtein').value = '';
+            document.getElementById('mealFat').value = '';
+            document.getElementById('mealCarbs').value = '';
+            
+            document.getElementById('mealCarbohydrate').value = '';
+            document.getElementById('mealSugar').value = '';
+            document.getElementById('mealPotassium').value = '';
+            document.getElementById('mealCalcium').value = '';
+            document.getElementById('mealMagnesium').value = '';
+            document.getElementById('mealIron').value = '';
+            document.getElementById('mealZinc').value = '';
+            document.getElementById('mealVitaminA').value = '';
+            document.getElementById('mealVitaminD').value = '';
+            document.getElementById('mealVitaminE').value = '';
+            document.getElementById('mealVitaminB1').value = '';
+            document.getElementById('mealVitaminB2').value = '';
+            document.getElementById('mealVitaminB6').value = '';
+            document.getElementById('mealVitaminB12').value = '';
+            document.getElementById('mealVitaminC').value = '';
+            document.getElementById('mealFolate').value = '';
+            document.getElementById('mealFiber').value = '';
+            document.getElementById('mealSaturatedFat').value = '';
+            document.getElementById('mealSalt').value = '';
+
+            document.getElementById('textMealInput').value = '';
+            resetImageSelection();
+            
+            const detailedContainer = document.getElementById('detailedInputContainer');
+            const accordionIcon = document.getElementById('accordionIcon');
+            detailedContainer.classList.add('hidden');
+            accordionIcon.style.transform = 'rotate(0deg)';
+        }
+
+        window.deleteMealItem = async function(id) {
+            if (isFirebaseMock) {
+                const local = JSON.parse(localStorage.getItem(`meals_${syncKey}`) || '[]');
+                const filtered = local.filter(item => item.id !== id);
+                localStorage.setItem(`meals_${syncKey}`, JSON.stringify(filtered));
+                allMeals = filtered;
+                updateUI();
+                showToast("記録を削除しました");
+            } else {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meals', id));
+                    showToast("記録を削除しました");
+                } catch (e) {
+                    console.error("削除エラー:", e);
+                    showToast("削除に失敗しました", true);
+                }
+            }
+        }
+
+        window.generateAdvice = async function() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            const todaysMeals = allMeals.filter(m => m.date === selectedDate);
+            
+            let totalCal = 0, totalP = 0, totalF = 0, totalC = 0;
+            let totalCarbohydrate = 0, totalSugar = 0, totalPotassium = 0, totalCalcium = 0, totalMagnesium = 0,
+                totalIron = 0, totalZinc = 0, totalVitaminA = 0, totalVitaminD = 0, totalVitaminE = 0,
+                totalVitaminB1 = 0, totalVitaminB2 = 0, totalVitaminB6 = 0, totalVitaminB12 = 0, totalVitaminC = 0,
+                totalFolate = 0, totalFiber = 0, totalSaturatedFat = 0, totalSalt = 0;
+
+            todaysMeals.forEach(m => {
+                totalCal += Number(m.calories) || 0;
+                totalP += Number(m.protein) || 0;
+                totalF += Number(m.fat) || 0;
+                totalC += Number(m.carbs) || 0;
+
+                totalCarbohydrate += Number(m.carbohydrate) || 0;
+                totalSugar += Number(m.sugar) || 0;
+                totalPotassium += Number(m.potassium) || 0;
+                totalCalcium += Number(m.calcium) || 0;
+                totalMagnesium += Number(m.magnesium) || 0;
+                totalIron += Number(m.iron) || 0;
+                totalZinc += Number(m.zinc) || 0;
+                totalVitaminA += Number(m.vitaminA) || 0;
+                totalVitaminD += Number(m.vitaminD) || 0;
+                totalVitaminE += Number(m.vitaminE) || 0;
+                totalVitaminB1 += Number(m.vitaminB1) || 0;
+                totalVitaminB2 += Number(m.vitaminB2) || 0;
+                totalVitaminB6 += Number(m.vitaminB6) || 0;
+                totalVitaminB12 += Number(m.vitaminB12) || 0;
+                totalVitaminC += Number(m.vitaminC) || 0;
+                totalFolate += Number(m.folate) || 0;
+                totalFiber += Number(m.fiber) || 0;
+                totalSaturatedFat += Number(m.saturatedFat) || 0;
+                totalSalt += Number(m.salt) || 0;
+            });
+
+            const mealListSummary = todaysMeals.map(m => {
+                return `・${getCategoryName(m.category)}: ${m.name} (${Math.round(m.calories)}kcal)`;
+            }).join('\n');
+
+            const btn = document.getElementById('getAdviceBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i> アドバイス作成中...';
+
+            try {
+                const systemPrompt = "あなたはユーザー想いで元気、そして全19大栄養素の微量バランスまで解釈できるプロの管理栄養士「GB」です。ハツラツとして専門的な口調で、ユーザーを励ましながら講評を作成してください。";
+                
+                const queryPrompt = `【ユーザー設定目標】
+・カロリー: ${profile.caloriesTarget}kcal
+・たんぱく質: ${profile.proteinTarget}g, 脂質: ${profile.fatTarget}g, 炭水化物(PFC): ${profile.carbsTarget}g
+・炭水化物(実数): ${profile.carbohydrateTarget}g, 糖質: ${profile.sugarTarget}g, 食物繊維: ${profile.fiberTarget}g
+・カリウム: ${profile.potassiumTarget}mg, カルシウム: ${profile.calciumTarget}mg, マグネシウム: ${profile.magnesiumTarget}mg
+・鉄: ${profile.ironTarget}mg, 亜鉛: ${profile.zincTarget}mg
+・ビタミンA: ${profile.vitaminATarget}μg, ビタミンD: ${profile.vitaminDTarget}μg, ビタミンE: ${profile.vitaminETarget}mg
+・ビタミンB1: ${profile.vitaminB1Target}mg, ビタミンB2: ${profile.vitaminB2Target}mg, ビタミンB6: ${profile.vitaminB6Target}mg, ビタミンB12: ${profile.vitaminB12Target}μg
+・ビタミンC: ${profile.vitaminCTarget}mg, 葉酸: ${profile.folateTarget}μg
+・飽和脂肪酸(上限): ${profile.saturatedFatTarget}g, 塩分(上限): ${profile.saltTarget}g
+
+【今日の合計実績】
+・カロリー: ${Math.round(totalCal)}kcal
+・PFC: P ${Math.round(totalP)}g, F ${Math.round(totalF)}g, C ${Math.round(totalC)}g
+・糖質・繊維: 炭水化物 ${Math.round(totalCarbohydrate)}g, 糖質 ${Math.round(totalSugar)}g, 食物繊維 ${totalFiber.toFixed(1)}g
+・ミネラル: カリウム ${Math.round(totalPotassium)}mg, Ca ${Math.round(totalCalcium)}mg, Mg ${Math.round(totalMagnesium)}mg, 鉄 ${totalIron.toFixed(1)}mg, 亜鉛 ${totalZinc.toFixed(1)}mg
+・ビタミン: VitA ${Math.round(totalVitaminA)}μg, VitD ${totalVitaminD.toFixed(1)}μg, VitE ${totalVitaminE.toFixed(1)}mg, B1 ${totalVitaminB1.toFixed(2)}mg, B2 ${totalVitaminB2.toFixed(2)}mg, B6 ${totalVitaminB6.toFixed(2)}mg, B12 ${totalVitaminB12.toFixed(1)}μg, VitC ${Math.round(totalVitaminC)}mg, 葉酸 ${Math.round(totalFolate)}μg
+・その他: 飽和脂肪酸 ${totalSaturatedFat.toFixed(1)}g, 塩分 ${totalSalt.toFixed(1)}g
+
+【食事リスト】
+${mealListSummary || "登録なし"}
+
+糖質や塩分、飽和脂肪酸の過剰、あるいは鉄、亜鉛、カルシウム、各種ビタミンなどの目立った過不足を指摘し、改善のアドバイスや明日取り入れるべきおすすめ食品を優しくハツラツと220文字程度で簡潔にまとめてください。`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: queryPrompt }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const res = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                const advice = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (advice) {
+                    adviceText = advice;
+                    document.getElementById('adviceContent').innerText = advice;
+                    document.getElementById('ttsButton').disabled = false;
+                } else {
+                    document.getElementById('adviceContent').innerText = "本日のバランス分析ができませんでした。";
+                }
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('adviceContent').innerText = "アドバイスの生成に失敗しました。";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>AIアドバイスを生成</span>';
+            }
+        }
+
+        window.toggleTts = async function() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            if (!adviceText) return;
+
+            if (isTtsPlaying && ttsAudioElement) {
+                ttsAudioElement.pause();
+                isTtsPlaying = false;
+                document.getElementById('ttsIcon').className = 'fa-solid fa-volume-high';
+                return;
+            }
+
+            const ttsIcon = document.getElementById('ttsIcon');
+            ttsIcon.className = 'fa-solid fa-spinner animate-spin';
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: `ハツラツと、親身に優しく語りかけるように朗読してください：\n${adviceText}` }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Puck" }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const res = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)?.[1] || "24000", 10);
+                    const pcmBuffer = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmBuffer);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    if (ttsAudioElement) {
+                        ttsAudioElement.pause();
+                    }
+                    
+                    ttsAudioElement = new Audio(audioUrl);
+                    ttsAudioElement.play();
+                    isTtsPlaying = true;
+                    ttsIcon.className = 'fa-solid fa-pause text-orange-500';
+
+                    ttsAudioElement.onended = () => {
+                        isTtsPlaying = false;
+                        ttsIcon.className = 'fa-solid fa-volume-high';
+                    };
+                } else {
+                    throw new Error("TTSデータの取得に失敗");
+                }
+
+            } catch (e) {
+                console.error(e);
+                showToast("音声合成に失敗しました", true);
+                ttsIcon.className = 'fa-solid fa-volume-high';
+                isTtsPlaying = false;
+            }
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16Data, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcm16Data.length * 2);
+            const view = new DataView(buffer);
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16Data.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16Data.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcm16Data.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16Data[i], true);
+            }
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        window.openDailyDetailModal = function() {
+            const todaysMeals = allMeals.filter(m => m.date === selectedDate);
+            
+            document.getElementById('detailModalDate').innerText = selectedDate;
+            document.getElementById('detailModalMealCount').innerText = `登録: ${todaysMeals.length}件`;
+
+            // 詳細成分の集計
+            let carbohydrate = 0, sugar = 0, potassium = 0, calcium = 0, magnesium = 0,
+                iron = 0, zinc = 0, vitaminA = 0, vitaminD = 0, vitaminE = 0,
+                vitaminB1 = 0, vitaminB2 = 0, vitaminB6 = 0, vitaminB12 = 0, vitaminC = 0,
+                folate = 0, fiber = 0, saturatedFat = 0, salt = 0;
+
+            todaysMeals.forEach(m => {
+                carbohydrate += Number(m.carbohydrate) || 0;
+                sugar += Number(m.sugar) || 0;
+                potassium += Number(m.potassium) || 0;
+                calcium += Number(m.calcium) || 0;
+                magnesium += Number(m.magnesium) || 0;
+                iron += Number(m.iron) || 0;
+                zinc += Number(m.zinc) || 0;
+                vitaminA += Number(m.vitaminA) || 0;
+                vitaminD += Number(m.vitaminD) || 0;
+                vitaminE += Number(m.vitaminE) || 0;
+                vitaminB1 += Number(m.vitaminB1) || 0;
+                vitaminB2 += Number(m.vitaminB2) || 0;
+                vitaminB6 += Number(m.vitaminB6) || 0;
+                vitaminB12 += Number(m.vitaminB12) || 0;
+                vitaminC += Number(m.vitaminC) || 0;
+                folate += Number(m.folate) || 0;
+                fiber += Number(m.fiber) || 0;
+                saturatedFat += Number(m.saturatedFat) || 0;
+                salt += Number(m.salt) || 0;
+            });
+
+            // 1. 糖質・食物繊維グループ
+            const detailSugarFiberGrid = document.getElementById('detailSugarFiberGrid');
+            detailSugarFiberGrid.innerHTML = `
+                ${getDetailMetricCard("炭水化物", carbohydrate, profile.carbohydrateTarget || 275, "g", "normal")}
+                ${getDetailMetricCard("糖質", sugar, profile.sugarTarget || 250, "g", "normal")}
+                ${getDetailMetricCard("食物繊維", fiber, profile.fiberTarget || 18, "g", "fiber")}
+            `;
+
+            // 2. 主要ミネラル
+            const detailMineralGrid = document.getElementById('detailMineralGrid');
+            detailMineralGrid.innerHTML = `
+                ${getDetailMetricCard("カリウム", potassium, profile.potassiumTarget || 2500, "mg", "normal")}
+                ${getDetailMetricCard("カルシウム", calcium, profile.calciumTarget || 650, "mg", "calcium")}
+                ${getDetailMetricCard("マグネシウム", magnesium, profile.magnesiumTarget || 320, "mg", "normal")}
+                ${getDetailMetricCard("鉄", iron, profile.ironTarget || 7.5, "mg", "iron")}
+                ${getDetailMetricCard("亜鉛", zinc, profile.zincTarget || 10, "mg", "normal")}
+            `;
+
+            // 3. 主要ビタミン
+            const detailVitaminGrid = document.getElementById('detailVitaminGrid');
+            detailVitaminGrid.innerHTML = `
+                ${getDetailMetricCard("ビタミンA", vitaminA, profile.vitaminATarget || 800, "μgRE", "normal")}
+                ${getDetailMetricCard("ビタミンD", vitaminD, profile.vitaminDTarget || 8.5, "μg", "normal")}
+                ${getDetailMetricCard("ビタミンE", vitaminE, profile.vitaminETarget || 6.0, "mg", "normal")}
+                ${getDetailMetricCard("ビタミンB1", vitaminB1, profile.vitaminB1Target || 1.2, "mg", "normal", 2)}
+                ${getDetailMetricCard("ビタミンB2", vitaminB2, profile.vitaminB2Target || 1.4, "mg", "normal", 2)}
+                ${getDetailMetricCard("ビタミンB6", vitaminB6, profile.vitaminB6Target || 1.4, "mg", "normal", 2)}
+                ${getDetailMetricCard("ビタミンB12", vitaminB12, profile.vitaminB12Target || 2.4, "μg", "normal")}
+                ${getDetailMetricCard("ビタミンC", vitaminC, profile.vitaminCTarget || 100, "mg", "vitC")}
+                ${getDetailMetricCard("葉酸", folate, profile.folateTarget || 240, "μg", "normal")}
+            `;
+
+            // 4. 脂質・塩分（過多制限）
+            const detailExcessGrid = document.getElementById('detailExcessGrid');
+            detailExcessGrid.innerHTML = `
+                ${getDetailMetricCard("飽和脂肪酸", saturatedFat, profile.saturatedFatTarget || 15, "g", "excess")}
+                ${getDetailMetricCard("塩分", salt, profile.saltTarget || 7.0, "g", "salt")}
+            `;
+
+            // テーブル表示
+            const tbody = document.getElementById('detailTableBody');
+            if (todaysMeals.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="24" class="p-8 text-center text-slate-400 font-bold">
+                            登録された食事データがありません。
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = todaysMeals.map(m => `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3 sticky left-0 bg-white z-10 font-black border-r shadow-[2px_0_5px_rgba(0,0,0,0.03)] text-slate-700 min-w-[200px]">
+                            <div class="truncate">${escapeHTML(m.name)}</div>
+                            <div class="text-[9px] text-slate-400 font-extrabold">${getCategoryName(m.category)}</div>
+                        </td>
+                        <td class="p-3 text-right text-lime-600">${Math.round(m.calories)} kcal</td>
+                        <td class="p-3 text-right">${(m.protein || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right">${(m.fat || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right">${(m.carbs || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right">${(m.carbohydrate || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right">${(m.sugar || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right text-amber-700">${Math.round(m.potassium || 0)}mg</td>
+                        <td class="p-3 text-right text-amber-700">${Math.round(m.calcium || 0)}mg</td>
+                        <td class="p-3 text-right text-amber-700">${Math.round(m.magnesium || 0)}mg</td>
+                        <td class="p-3 text-right text-amber-700">${(m.iron || 0).toFixed(1)}mg</td>
+                        <td class="p-3 text-right text-amber-700">${(m.zinc || 0).toFixed(1)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${Math.round(m.vitaminA || 0)}μg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminD || 0).toFixed(1)}μg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminE || 0).toFixed(1)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminB1 || 0).toFixed(2)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminB2 || 0).toFixed(2)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminB6 || 0).toFixed(2)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${(m.vitaminB12 || 0).toFixed(1)}μg</td>
+                        <td class="p-3 text-right text-emerald-700">${Math.round(m.vitaminC || 0)}mg</td>
+                        <td class="p-3 text-right text-emerald-700">${Math.round(m.folate || 0)}μg</td>
+                        <td class="p-3 text-right text-indigo-700 font-extrabold">${(m.fiber || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right text-rose-700 font-extrabold">${(m.saturatedFat || 0).toFixed(1)}g</td>
+                        <td class="p-3 text-right text-rose-700 font-extrabold">${(m.salt || 0).toFixed(1)}g</td>
+                    </tr>
+                `).join('');
+            }
+
+            toggleModal('dailyDetailModal');
+        }
+
+        function getDetailMetricCard(label, val, target, unit, type, precision = 1) {
+            const pct = getPct(val, target);
+            let badgeText = '分析中';
+            let badgeClass = 'bg-slate-100 text-slate-600';
+            
+            if (type === 'salt' || type === 'excess') {
+                if (pct <= 60) {
+                    badgeText = '良好';
+                    badgeClass = 'bg-green-100 text-green-800';
+                } else if (pct <= 100) {
+                    badgeText = '許容範囲';
+                    badgeClass = 'bg-blue-100 text-blue-800';
+                } else {
+                    badgeText = '過剰過多';
+                    badgeClass = 'bg-rose-100 text-rose-800';
+                }
+            } else {
+                if (pct >= 100) {
+                    badgeText = '目標達成';
+                    badgeClass = 'bg-green-100 text-green-800';
+                } else if (pct >= 60) {
+                    badgeText = 'ほぼ良好';
+                    badgeClass = 'bg-blue-100 text-blue-800';
+                } else {
+                    badgeText = '摂取不足';
+                    badgeClass = 'bg-amber-100 text-amber-800';
+                }
+            }
+
+            const barWidth = Math.min(pct, 100);
+            const displayVal = precision === 2 ? val.toFixed(2) : (precision === 1 ? val.toFixed(1) : Math.round(val));
+            const displayTarget = precision === 2 ? target.toFixed(2) : (precision === 1 ? target.toFixed(1) : Math.round(target));
+
+            return `
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 flex flex-col justify-between space-y-2 shadow-sm">
+                    <div class="flex justify-between items-center">
+                        <span class="font-extrabold text-slate-700 text-[11px]">${label} (${unit})</span>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-sm font-black text-slate-800">${displayVal} / ${displayTarget}</span>
+                        <span class="text-[10px] font-bold text-lime-600">${pct}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-lime-500 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.saveProfile = async function() {
+            const cal = Number(document.getElementById('targetCalInput').value) || 2000;
+            const p = Number(document.getElementById('targetPInput').value) || 60;
+            const f = Number(document.getElementById('targetFInput').value) || 60;
+            const c = Number(document.getElementById('targetCInput').value) || 275;
+
+            const carbohydrate = Number(document.getElementById('targetCarbohydrateInput').value) || 275;
+            const sugar = Number(document.getElementById('targetSugarInput').value) || 250;
+            const potassium = Number(document.getElementById('targetPotassiumInput').value) || 2500;
+            const calcium = Number(document.getElementById('targetCalciumInput').value) || 650;
+            const magnesium = Number(document.getElementById('targetMagnesiumInput').value) || 320;
+            const iron = Number(document.getElementById('targetIronInput').value) || 7.5;
+            const zinc = Number(document.getElementById('targetZincInput').value) || 10;
+            const vitaminA = Number(document.getElementById('targetVitaminAInput').value) || 800;
+            const vitaminD = Number(document.getElementById('targetVitaminDInput').value) || 8.5;
+            const vitaminE = Number(document.getElementById('targetVitaminEInput').value) || 6.0;
+            const vitaminB1 = Number(document.getElementById('targetVitaminB1Input').value) || 1.2;
+            const vitaminB2 = Number(document.getElementById('targetVitaminB2Input').value) || 1.4;
+            const vitaminB6 = Number(document.getElementById('targetVitaminB6Input').value) || 1.4;
+            const vitaminB12 = Number(document.getElementById('targetVitaminB12Input').value) || 2.4;
+            const vitaminC = Number(document.getElementById('targetVitaminCInput').value) || 100;
+            const folate = Number(document.getElementById('targetFolateInput').value) || 240;
+            const fiber = Number(document.getElementById('targetFiberInput').value) || 18;
+            const saturatedFat = Number(document.getElementById('targetSaturatedFatInput').value) || 15;
+            const salt = Number(document.getElementById('targetSaltInput').value) || 7.0;
+
+            profile = {
+                caloriesTarget: cal,
+                proteinTarget: p,
+                fatTarget: f,
+                carbsTarget: c,
+                
+                carbohydrateTarget: carbohydrate,
+                sugarTarget: sugar,
+                potassiumTarget: potassium,
+                calciumTarget: calcium,
+                magnesiumTarget: magnesium,
+                ironTarget: iron,
+                zincTarget: zinc,
+                vitaminATarget: vitaminA,
+                vitaminDTarget: vitaminD,
+                vitaminETarget: vitaminE,
+                vitaminB1Target: vitaminB1,
+                vitaminB2Target: vitaminB2,
+                vitaminB6Target: vitaminB6,
+                vitaminB12Target: vitaminB12,
+                vitaminCTarget: vitaminC,
+                folateTarget: folate,
+                fiberTarget: fiber,
+                saturatedFatTarget: saturatedFat,
+                saltTarget: salt
+            };
+
+            localStorage.setItem('my_diet_profile', JSON.stringify(profile));
+
+            if (!isFirebaseMock) {
+                try {
+                    const profileDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', syncKey);
+                    await setDoc(profileDocRef, profile);
+                } catch (e) {
+                    console.error("プロフィールクラウド更新エラー:", e);
+                }
+            }
+
+            updateUI();
+            toggleModal('profileModal');
+            showToast("目標設定を更新しました！");
+        }
+
+        window.openSyncModal = function() {
+            const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?key=${syncKey}`;
+            const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(syncUrl)}`;
+            document.getElementById('syncQrCode').src = qrImageUrl;
+            document.getElementById('syncUrlText').value = syncUrl;
+            
+            window.toggleModal('syncModal');
+        }
+
+        window.copySyncUrl = function() {
+            const copyText = document.getElementById('syncUrlText');
+            copyText.select();
+            document.execCommand('copy');
+            showToast("同期用URLをコピーしました！");
+        }
+
+        window.toggleModal = function(id) {
+            const modal = document.getElementById(id);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.showToast = function(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const content = document.getElementById('toastContent');
+            content.className = `px-5 py-2.5 rounded-full text-xs font-bold shadow-lg flex items-center space-x-2 text-white ${isError ? 'bg-red-500' : 'bg-lime-600'}`;
+            content.innerHTML = `
+                <i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i>
+                <span>${msg}</span>
+            `;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
